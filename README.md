@@ -1,8 +1,8 @@
-﻿# Json2Board
+# Json2Board
 
-> Visualize AI-generated JSON as UE5-style Blueprint node graphs 鈥?instantly.
+> Visualize AI-generated JSON as UE5-style Blueprint node graphs — instantly.
 
-**[涓枃鏂囨。](./README.zh.md)** 路 [Releases](https://github.com/jiulengjing/Json2Board/releases/latest) 路 [Issues](https://github.com/jiulengjing/Json2Board/issues)
+**[Chinese README](./README.zh.md)** | [Releases](https://github.com/jiulengjing/Json2Board/releases/latest) | [Issues](https://github.com/jiulengjing/Json2Board/issues)
 
 [![Release](https://img.shields.io/badge/Release-v0.0.1-blue?style=flat-square)](https://github.com/jiulengjing/Json2Board/releases/tag/v0.0.1)
 [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?style=flat-square)]()
@@ -12,14 +12,16 @@
 
 ## What is Json2Board?
 
-Json2Board renders JSON into interactive, Unreal Engine Blueprint-style node graphs in your browser. Just tell an AI what logic you want, paste the JSON output, and see a visual graph immediately. No Unreal Engine needed.
+Json2Board renders JSON into interactive, Unreal Engine Blueprint-style node graphs in your browser.
+Just tell an AI what logic you want, paste the JSON output, and see a visual graph immediately.
+No Unreal Engine needed.
 
 **Key features:**
-- 馃 **AI-first workflow** 鈥?copy a built-in prompt, send it to any LLM (GPT-4o, Claude, Gemini鈥?, paste the result
-- 馃搼 **Multi-tab** 鈥?open multiple blueprints side by side, like browser tabs
-- 馃捑 **`.j2b` files** 鈥?save/load named blueprints; custom name embedded in JSON
-- 馃寪 **HTTP API** 鈥?`POST /api/render` for scripting and plugin integration
-- 鈿?**No install** 鈥?single portable `.exe`, no WebView2 / .NET / VC++ required
+- AI-first workflow -- copy the built-in prompt, send it to any LLM (GPT-4o, Claude, Gemini...), paste the result
+- Multi-tab -- open multiple blueprints side by side, like browser tabs
+- `.j2b` files -- save/load named blueprints; custom name embedded in JSON
+- HTTP API -- `POST /api/render` for scripting and plugin integration
+- No install -- single portable `.exe`, no WebView2 / .NET / VC++ required
 
 ---
 
@@ -31,8 +33,7 @@ Json2Board renders JSON into interactive, Unreal Engine Blueprint-style node gra
 
 The app starts a local HTTP server and automatically opens your browser to `http://localhost:14178`.
 
-> **Requirements:** Windows 10/11, Chrome or any modern browser.  
-> No installation. No dependencies.
+> Requirements: Windows 10/11, Chrome or any modern browser. No installation. No dependencies.
 
 ---
 
@@ -41,13 +42,13 @@ The app starts a local HTTP server and automatically opens your browser to `http
 The home tab inside the app contains full instructions. The basic flow:
 
 ```
-Open app 鈫?Copy AI Prompt 鈫?Paste to LLM 鈫?Get JSON 鈫?Paste into app 鈫?See Blueprint
+Open app -> Copy AI Prompt -> Paste to LLM -> Get JSON -> Paste into app -> See Blueprint
 ```
 
-1. **Copy AI Prompt** 鈥?click the button on the home tab, send it to your LLM as the system prompt
-2. **Describe your logic** 鈥?tell the AI what blueprint you want
-3. **Paste JSON** 鈥?click `+` for a new tab, then "Paste JSON", or use `Ctrl+V`
-4. **Save / Share** 鈥?download as a `.j2b` file (just JSON with a custom extension)
+1. **Copy AI Prompt** -- click the button on the home tab, send it to your LLM as the system prompt
+2. **Describe your logic** -- tell the AI what blueprint you want
+3. **Paste JSON** -- click `+` for a new tab, then "Paste JSON"
+4. **Save / Share** -- download as a `.j2b` file (plain JSON with a custom extension)
 
 ---
 
@@ -69,7 +70,7 @@ curl -X POST http://localhost:14178/api/render \
 
 ---
 
-## `.j2b` File Format
+## .j2b File Format
 
 `.j2b` files are plain JSON with a custom extension. Example:
 
@@ -91,9 +92,10 @@ curl -X POST http://localhost:14178/api/render \
 }
 ```
 
-**Node types:** `event` (red) 路 `function` (blue) 路 `macro` (grey) 路 `variable` (green)
+**Node types:** `event` (red) | `function` (blue) | `macro` (grey) | `variable` (green)
 
-**Data types:** `boolean` `integer` `float` `string` `vector` `rotator` `transform` `object` 鈥?
+**Data types:** `boolean` `integer` `float` `string` `vector` `rotator` `transform` `object` ...
+
 ---
 
 ## Build from Source
@@ -112,7 +114,7 @@ cargo build --release --manifest-path src-tauri/Cargo.toml
 # Output: src-tauri/target/release/Json2Board.exe  (~2.5 MB, self-contained)
 ```
 
-**Requirements:** Node.js 18+, Rust stable
+Requirements: Node.js 18+, Rust stable
 
 ---
 
@@ -122,12 +124,11 @@ cargo build --release --manifest-path src-tauri/Cargo.toml
 |-------|------|
 | Backend | Rust + Tokio + Axum |
 | Frontend | React 19 + @xyflow/react + Tailwind CSS v4 + Vite |
-| Packaging | `rust-embed` 鈥?frontend baked into the binary |
+| Packaging | rust-embed -- frontend baked into the binary |
 | Distribution | Single `.exe`, no runtime dependencies |
 
 ---
 
 ## License
 
-MIT 鈥?free to use, modify, and distribute.
-
+MIT -- free to use, modify, and distribute.
