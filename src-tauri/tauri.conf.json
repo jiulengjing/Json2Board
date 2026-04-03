@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Json2Board",
+  "productName": "UE5-Graph-Text-Graph",
   "version": "0.1.0",
-  "identifier": "com.json2board.app",
+  "identifier": "com.ue5-gtg.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Json2Board",
+        "title": "UE5-Graph-Text-Graph",
         "width": 1200,
         "height": 800,
         "decorations": false,

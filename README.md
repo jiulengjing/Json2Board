@@ -1,132 +1,103 @@
-# Json2Board
+# UE5-Graph-Text-Graph
 
-> Visualize AI-generated JSON as UE5-style node graphs — Blueprint, Material Editor, and Niagara.
+> A bidirectional Blueprint compiler for Unreal Engine 5.7 — extract, visualize, and AI-generate blueprint logic using a Zero-Token-Tax text format.
 
-**[简体中文](./README.zh.md)** | [Releases](https://github.com/jiulengjing/Json2Board/releases/latest) | [Issues](https://github.com/jiulengjing/Json2Board/issues)
-
-[![Release](https://img.shields.io/badge/Release-v0.0.3-blue?style=flat-square)](https://github.com/jiulengjing/Json2Board/releases/tag/v0.0.3)
-[![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?style=flat-square)]()
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]()
+**[简体中文](./README.zh.md)**
 
 ---
 
-## What is Json2Board?
+## What is UE5-Graph-Text-Graph?
 
-Json2Board renders JSON into interactive UE5-style node graphs in your browser — just paste AI-generated JSON and see the result instantly. No Unreal Engine needed.
+UE5-Graph-Text-Graph (abbreviated **GTG**) is a developer tool that bridges **Unreal Engine 5 blueprints**, **plain text**, and **visual node graphs** — in both directions.
 
-**Supported graph styles (v0.0.3):**
-- 🔵 **Blueprint** — event/function/macro/variable nodes, exec flow + data pins
-- 🎨 **Material Editor** — data-only graph, texture/math/output nodes with glow
-- ✨ **Niagara** — particle modules with Spawn/Update/Render stage badges
-
-One `schemaType` field in the JSON switches the rendering style automatically.
-
-**Key features:**
-- AI-first workflow -- built-in prompts for each style, works with any LLM
-- JSON Edit Modal -- focused popup for editing, rendering, and one-click copying JSON
-- Multi-tab -- open multiple graphs side by side
-- `.j2b` files -- save/load graphs; name and schemaType embedded in JSON
-- HTTP API -- `POST /api/render` for scripting and plugin integration
-- No install -- single portable `.exe`, no WebView2 / .NET / VC++ required
-
----
-
-## Download & Run
-
-1. Go to [Releases](https://github.com/jiulengjing/Json2Board/releases/latest)
-2. Download `Json2Board-v0.0.3-windows-x64.zip`
-3. Extract and **double-click `Json2Board.exe`**
-
-The app starts a local HTTP server and automatically opens your browser to `http://localhost:14178`.
-
-> Requirements: Windows 10/11, Chrome or any modern browser. No installation. No dependencies.
-
----
-
-## How to Use
-
-The home tab inside the app contains full instructions. The basic flow:
+Instead of the verbose JSON format, GTG uses a minimal arrow-based syntax called **GTG-Script**:
 
 ```
-Open app -> Select style -> Copy AI Prompt -> Paste to LLM -> Get JSON -> Paste into app -> See graph
+[Node: Branch] (Macro)
+<- IN [Exec: execute]: InputAction_Fire.Started
+<- IN [Data: Condition]: Get_Ammo.Value
+-> OUT [Exec: True]: FireWeapon.execute
+-> OUT [Exec: False]: PlayDryFireSound.execute
 ```
 
-1. **Select graph style** -- on the home tab, choose Blueprint, Material Editor, or Niagara
-2. **Copy AI Prompt** -- click the copy button, send it to your LLM as the system prompt
-3. **Describe your graph** -- tell the AI what logic or material you want
-4. **Paste JSON** -- click `+` for a new tab, then "Paste JSON"
-5. **Save / Share** -- download as a `.j2b` file (plain JSON with a custom extension)
+This format is:
+- **Token-efficient** — suitable for pasting directly into AI chat context
+- **Human-readable** — understandable without any tooling
+- **Renderable** — paste into the app and the canvas renders instantly
 
 ---
 
-## HTTP API
+## Core Workflow
 
-For scripting or plugin integration:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/render` | POST | Send graph JSON (any schemaType); browser opens automatically |
-| `/api/latest` | GET | Fetch the latest payload |
-| `/api/sse` | GET | Server-Sent Events stream for real-time updates |
-
-```bash
-curl -X POST http://localhost:14178/api/render \
-  -H "Content-Type: application/json" \
-  -d @my_blueprint.j2b
 ```
+UE Blueprint  →  T3D Text  →  GTG-Script  →  AI Context
+                                    ↑               ↓
+              Canvas render  ←  GTG-Script  ← AI Response
+```
+
+1. **Extract**: Copy blueprint nodes in UE5 (Ctrl+C) → Paste into the T3D pane
+2. **Convert**: GTG-Script is auto-generated and the visual graph renders immediately
+3. **Send to AI**: Copy the `GTG-Script` syntax rules and your GTG-Script, send to any LLM
+4. **Receive back**: Paste the AI's GTG-Script response → canvas renders the new blueprint
+5. **Multi-tab**: Open multiple tabs to compare different blueprint segments side by side
 
 ---
 
-## .j2b File Format
+## Interface
 
-`.j2b` files are plain JSON. The `schemaType` field selects the rendering style:
+The workspace is split into three resizable panes:
 
-```json
-{
-  "version": "1.0",
-  "schemaType": "blueprint",
-  "name": "My Blueprint",
-  "nodes": [
-    {
-      "id": "ev_begin",
-      "type": "event",
-      "label": "On Begin Play",
-      "position": { "x": 100, "y": 150 },
-      "inputs": [],
-      "outputs": [{ "id": "exec_out", "label": "", "type": "exec" }]
-    }
-  ],
-  "edges": []
-}
+| Pane | Content |
+|------|---------|
+| Top-left | T3D raw blueprint text input (paste from UE, auto-converts) |
+| Bottom-left | GTG-Script (auto-generated from T3D, or paste AI output directly) |
+| Right | Live visual Blueprint graph canvas |
+
+All three panes are fully resizable by dragging the dividers. Multiple tabs can be opened via the `+` button in the top bar.
+
+---
+
+## GTG-Script Syntax
+
+### Node Declaration
+```
+[Node: DisplayName] (Type)
 ```
 
-**`schemaType` values:** `"blueprint"` (default) | `"material"` | `"niagara"`
+| Type | Color | Use case |
+|------|-------|----------|
+| `Event` | Red | CustomEvent, InputAction, BeginPlay |
+| `Pure` | Green | Get variable, constant, pure function |
+| `Macro` | Gray | Branch, Sequence, ForLoop, Switch |
+| `Function` | Blue | Function call, Set variable |
 
-**Blueprint node types:** `event` (red) | `function` (blue) | `macro` (grey) | `variable` (green)
-**Material node types:** `input` (gold) | `math` (blue-grey) | `texture` (purple) | `output` (amber)
-**Niagara node types:** `emitter` (orange) | `particle` (green) | `module` (purple) | `event` (blue) | `variable` (cyan)
+### Pin Declaration
+```
+<- IN [PinType: PinName]: SourceNode.SourcePin
+-> OUT [PinType: PinName]: TargetNode.TargetPin
+```
 
-> Omitting `schemaType` defaults to `"blueprint"` — fully backward compatible.
+- `PinType`: `Exec` (execution flow) or `Data` (data flow)
+- Unconnected values are written inline: `<- IN [Data: Delay]: 0.5`
 
 ---
 
 ## Build from Source
 
 ```bash
-git clone https://github.com/jiulengjing/Json2Board
-cd Json2Board
+git clone https://github.com/jiulengjing/UE5-Graph-Text-Graph
+cd UE5-Graph-Text-Graph
 
-# 1. Build frontend
+# Frontend
 npm install
-npm run build
+npm run dev     # development
+npm run build   # production build
 
-# 2. Build backend (release)
-cargo build --release --manifest-path src-tauri/Cargo.toml
-
-# Output: src-tauri/target/release/Json2Board.exe  (~2.5 MB, self-contained)
+# Desktop binary (Rust/Tauri)
+npm run tauri build
 ```
 
-Requirements: Node.js 18+, Rust stable
+Requirements: Node.js 20+, Rust stable
 
 ---
 
@@ -134,13 +105,13 @@ Requirements: Node.js 18+, Rust stable
 
 | Layer | Tech |
 |-------|------|
-| Backend | Rust + Tokio + Axum |
-| Frontend | React 19 + @xyflow/react + Tailwind CSS v4 + Vite |
-| Packaging | rust-embed -- frontend baked into the binary |
-| Distribution | Single `.exe`, no runtime dependencies |
+| Frontend | React 19, @xyflow/react, Vite |
+| Layout engine | dagre (auto-layout for AI-generated graphs) |
+| Parser | Custom Two-Pass T3D parser + GTG reverse parser |
+| Desktop shell | Tauri 2 + Rust |
 
 ---
 
 ## License
 
-MIT -- free to use, modify, and distribute.
+MIT — free to use, modify, and distribute.

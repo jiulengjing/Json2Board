@@ -1,0 +1,138 @@
+import { useEffect } from 'react';
+import {
+  ReactFlow,
+  useNodesState,
+  useEdgesState,
+  Background,
+  BackgroundVariant,
+  Controls,
+  Edge,
+  Node,
+  MarkerType,
+  SelectionMode
+} from '@xyflow/react';
+import BlueprintNode from './nodes/BlueprintNode';
+import MaterialNode from './nodes/MaterialNode';
+import NiagaraNode from './nodes/NiagaraNode';
+import { SchemaType, NodeData, getPinColors } from '../themes';
+
+// -- We need JsonPayload interface here --
+export interface JsonNode {
+  id: string; type: string; label: string;
+  position: { x: number; y: number };
+  inputs: any[]; outputs: any[];
+  meta?: Record<string, unknown>;
+}
+export interface JsonEdge {
+  source: string; sourceHandle: string;
+  target: string; targetHandle: string;
+}
+export interface JsonPayload {
+  version: string;
+  schemaType?: SchemaType;
+  name?: string;
+  nodes: JsonNode[];
+  edges: JsonEdge[];
+}
+
+const BLUEPRINT_NODE_TYPES = { blueprint: BlueprintNode };
+const MATERIAL_NODE_TYPES  = { material: MaterialNode };
+const NIAGARA_NODE_TYPES   = { niagara: NiagaraNode };
+
+function getNodeTypes(st: SchemaType) {
+  if (st === 'material') return MATERIAL_NODE_TYPES;
+  if (st === 'niagara')  return NIAGARA_NODE_TYPES;
+  return BLUEPRINT_NODE_TYPES;
+}
+function getFlowNodeType(st: SchemaType) {
+  if (st === 'material') return 'material';
+  if (st === 'niagara')  return 'niagara';
+  return 'blueprint';
+}
+
+function BoardActions({ onEdit, onUpload, onDownload }: { onEdit?: () => void; onUpload?: () => void; onDownload?: () => void }) {
+  const btns = [
+    { icon: '📝', label: '编辑', action: onEdit },
+    { icon: '📂', label: '打开', action: onUpload },
+    { icon: '⬇', label: '下载', action: onDownload },
+  ].filter(b => b.action);
+  
+  if (btns.length === 0) return null;
+
+  return (
+    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', gap: 4, background: 'rgba(15,15,20,0.88)', backdropFilter: 'blur(12px)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.09)', padding: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
+      {btns.map(({ icon, label, action }) => (
+        <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent', color: '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.12s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+          title={label}>
+          <span>{icon}</span><span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function BoardEditor({
+  payload, onEdit, onUpload, onDownload,
+}: {
+  payload: JsonPayload;
+  onEdit?: () => void;
+  onUpload?: () => void; 
+  onDownload?: () => void;
+}) {
+  const schemaType: SchemaType = payload.schemaType ?? 'blueprint';
+  const nodeTypes = getNodeTypes(schemaType);
+  const flowType = getFlowNodeType(schemaType);
+  const pinColors = getPinColors(schemaType);
+  const execColor = schemaType === 'niagara' ? '#ff8040' : '#ffffff';
+  const edgeType  = 'default'; 
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  useEffect(() => {
+    const flowNodes: Node<NodeData>[] = payload.nodes.map(n => ({
+      id: n.id, type: flowType, position: n.position || { x: 0, y: 0 },
+      data: { nodeType: n.meta?.nodeType as string || 'function', label: n.label || n.id, inputs: n.inputs || [], outputs: n.outputs || [], meta: n.meta },
+    }));
+
+    const flowEdges: Edge[] = payload.edges.map((e, i) => {
+      const src = payload.nodes.find(n => n.id === e.source);
+      const pin = src?.outputs?.find(p => p.id === e.sourceHandle);
+      const pt  = pin?.type || 'data';
+      const dt  = pin?.dataType;
+      const col = pt === 'exec' ? execColor : ((dt && pinColors[dt]) ?? '#9e9e9e');
+      const isExec = pt === 'exec';
+      return {
+        id: `e-${i}-${e.source}-${e.target}`,
+        source: e.source, sourceHandle: e.sourceHandle,
+        target: e.target, targetHandle: e.targetHandle,
+        type: edgeType,
+        style: { stroke: col, strokeWidth: isExec ? 2.5 : 1.8, opacity: 0.9 },
+        markerEnd: isExec ? { type: MarkerType.ArrowClosed, color: col, width: 14, height: 14 } : undefined,
+      };
+    });
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  }, [payload, setNodes, setEdges, flowType, execColor, pinColors, edgeType]);
+
+  const bgColor = schemaType === 'niagara' ? '#1e1820' : schemaType === 'material' ? '#161620' : '#1a1a1a';
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <ReactFlow nodes={nodes} edges={edges}
+        onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes} fitView colorMode="dark"
+        panOnDrag={[1, 2]} selectionOnDrag selectionMode={SelectionMode.Partial}
+        panOnScroll={false} onContextMenu={e => e.preventDefault()}
+        minZoom={0.1} maxZoom={2.5} defaultEdgeOptions={{ type: edgeType }}>
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={bgColor} />
+        <Controls showInteractive={false} />
+      </ReactFlow>
+      
+      <BoardActions onEdit={onEdit} onUpload={onUpload} onDownload={onDownload} />
+    </div>
+  );
+}

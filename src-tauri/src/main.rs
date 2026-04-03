@@ -140,7 +140,7 @@ async fn main() {
     let addr = "127.0.0.1:14178";
     match TcpListener::bind(addr).await {
         Ok(listener) => {
-            eprintln!("[Json2Board] Listening on http://{addr}");
+            eprintln!("[UE5-GTG] Listening on http://{addr}");
 
             // Open browser automatically after server is ready
             tokio::spawn(async {
@@ -151,7 +151,7 @@ async fn main() {
             let _ = axum::serve(listener, router).await;
         }
         Err(e) => {
-            eprintln!("[Json2Board] Failed to bind port 14178: {e}");
+            eprintln!("[UE5-GTG] Failed to bind port 14178: {e}");
             // Port already in use — just open browser to existing instance
             open_browser("http://localhost:14178");
         }

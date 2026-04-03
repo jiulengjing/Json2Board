@@ -1,144 +1,117 @@
-# Json2Board
+# UE5-Graph-Text-Graph
 
-> 把 AI 大模型的 JSON 输出直接可视化为 UE5 风格节点图 — 蓝图、材质编辑器、Niagara 三种样式
+> 虚幻引擎 5.7 的蓝图双向编译器 —— 使用零 Token 税的文本格式提取、可视化并借助 AI 生成蓝图逻辑。
 
-**[English README](./README.md)** | [Releases](https://github.com/jiulengjing/Json2Board/releases/latest) | [Issues](https://github.com/jiulengjing/Json2Board/issues)
-
-[![Release](https://img.shields.io/badge/Release-v0.0.3-blue?style=flat-square)](https://github.com/jiulengjing/Json2Board/releases/tag/v0.0.3)
-[![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?style=flat-square)]()
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]()
+**[English](./README.md)**
 
 ---
 
 ## 这是什么？
 
-Json2Board 在浏览器中把 JSON 渲染成交互式的 UE5 风格节点图，粘贴 AI 生成的 JSON 即刻可见。不需要安装虚幻引擎。
+UE5-Graph-Text-Graph（缩写 **GTG**）是一个开发者工具，用于打通 **虚幻引擎 5 蓝图**、**纯文本** 与 **可视化节点图** 三者之间的转译通道——支持双向操作。
 
-**支持的图表样式（v0.0.3）：**
-- 🔵 **Blueprint（蓝图）** — 事件/函数/宏/变量节点，exec 执行流 + 数据引脚
-- 🎨 **Material Editor（材质编辑器）** — 纯数据流，纹理/数学/输出节点，带发光效果
-- ✨ **Niagara（粒子特效）** — 粒子模块，带 Spawn/Update/Render 阶段徽章
+GTG 使用一种名为 **GTG-Script** 的极简箭头语法，代替繁琐的 JSON 格式：
 
-JSON 中一个 `schemaType` 字段即可自动切换渲染样式。
+```
+[Node: Branch] (Macro)
+<- IN [Exec: execute]: InputAction_Fire.Started
+<- IN [Data: Condition]: Get_Ammo.Value
+-> OUT [Exec: True]: FireWeapon.execute
+-> OUT [Exec: False]: PlayDryFireSound.execute
+```
 
-**核心特性：**
-- AI 优先工作流 —— 内置 Prompt 模板，涵盖每种样式，发给任意大模型即用
-- JSON 编辑弹窗 —— 专注的弹窗用于编辑、渲染和一键复制 JSON
-- 多标签页 —— 像浏览器一样并排打开多张图表
-- `.j2b` 文件 —— 自定义命名保存/加载，schemaType 内嵌在 JSON 中
-- HTTP API —— `POST /api/render`，供脚本和插件程序化调用
-- 免安装 —— 单一可执行文件，无需 WebView2 / .NET / VC++ 运行时
+这种格式：
+- **Token 税极低** —— 可直接粘贴进 AI 对话作为上下文
+- **人类可读** —— 无需任何工具即可理解
+- **可直接渲染** —— 粘贴进工具，画布立即显示节点图
 
 ---
 
-## 下载 & 运行
+## 核心工作流
 
-1. 前往 [Releases](https://github.com/jiulengjing/Json2Board/releases/latest)
-2. 下载 `Json2Board-v0.0.3-windows-x64.zip`
-3. 解压后**双击 `Json2Board.exe`** 即可
+```
+UE 蓝图  →  T3D 文本  →  GTG-Script  →  AI 上下文
+                              ↑               ↓
+         画布渲染   ←  GTG-Script  ←  AI 返回结果
+```
 
-程序启动本地 HTTP 服务器，并自动在浏览器中打开 `http://localhost:14178`。
-
-> 系统要求：Windows 10/11，Chrome 或任意现代浏览器。无需安装，无依赖项。
+1. **提取**：在 UE5 中框选蓝图节点 Ctrl+C → 粘贴到 T3D 文本区
+2. **转换**：GTG-Script 自动生成，右侧节点图同步渲染
+3. **发给 AI**：复制语法规则和 GTG-Script，发给任何大模型
+4. **接收还原**：将 AI 返回的 GTG-Script 粘贴回工具 → 画布立即渲染新蓝图
+5. **多标签并行**：点击顶栏的 `+` 新建标签，同时分析多段蓝图逻辑
 
 ---
 
-## 使用方法
+## 界面说明
 
-打开后默认显示使用说明页，里面有完整教程。基本流程：
+工作区分为三个可自由调整大小的面板：
 
-```
-打开应用 -> 选择样式 -> 复制 AI Prompt -> 发给大模型 -> 得到 JSON -> 粘贴进应用 -> 看到节点图
-```
+| 面板 | 内容 |
+|------|------|
+| 左上 | T3D 原始蓝图文本输入区（从 UE 粘贴，自动转换） |
+| 左下 | GTG-Script 区（T3D 自动生成，或直接粘贴 AI 输出） |
+| 右侧 | 实时蓝图节点图渲染画布 |
 
-1. **选择样式** —— 在主页选择 Blueprint、Material Editor 或 Niagara
-2. **复制 AI Prompt** —— 点击复制按钮，作为系统提示词发给大模型
-3. **描述你的图表** —— 告诉 AI 你想要什么逻辑或材质
-4. **粘贴 JSON** —— 点击 `+` 新建标签页，然后点「粘贴 JSON」
-5. **保存 / 分享** —— 下载为 `.j2b` 文件（纯 JSON，自定义扩展名）
+三个面板均可通过拖拽分割线调整大小。顶栏 `+` 按钮可新建多个工作标签。
 
 ---
 
-## HTTP API（程序化调用）
+## GTG-Script 语法
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/render` | POST | 发送节点图 JSON（任意 schemaType），浏览器自动打开并渲染 |
-| `/api/latest` | GET | 获取最新 payload |
-| `/api/sse` | GET | SSE 实时推送流 |
-
-```bash
-curl -X POST http://localhost:14178/api/render \
-  -H "Content-Type: application/json" \
-  -d @my_blueprint.j2b
+### 节点声明
+```
+[Node: 显示名称] (类型)
 ```
 
----
+| 类型 | 颜色 | 适用场景 |
+|------|------|----------|
+| `Event` | 红色 | CustomEvent、InputAction、BeginPlay |
+| `Pure` | 绿色 | 读取变量、常量、纯函数 |
+| `Macro` | 灰色 | Branch、Sequence、ForLoop、Switch |
+| `Function` | 蓝色 | 函数调用、设置变量 |
 
-## .j2b 文件格式
-
-`.j2b` 文件是纯 JSON 文件，`schemaType` 字段选择渲染样式：
-
-```json
-{
-  "version": "1.0",
-  "schemaType": "blueprint",
-  "name": "我的蓝图",
-  "nodes": [
-    {
-      "id": "ev_begin",
-      "type": "event",
-      "label": "On Begin Play",
-      "position": { "x": 100, "y": 150 },
-      "inputs": [],
-      "outputs": [{ "id": "exec_out", "label": "", "type": "exec" }]
-    }
-  ],
-  "edges": []
-}
+### 引脚声明
+```
+<- IN [引脚类型: 引脚名]: 来源节点.来源引脚
+-> OUT [引脚类型: 引脚名]: 目标节点.目标引脚
 ```
 
-**`schemaType` 取值：** `"blueprint"`（默认）| `"material"` | `"niagara"`
-
-**Blueprint 节点类型：** `event`（红）| `function`（蓝）| `macro`（灰）| `variable`（绿）
-**Material 节点类型：** `input`（金）| `math`（蓝灰）| `texture`（紫）| `output`（琥珀）
-**Niagara 节点类型：** `emitter`（橙）| `particle`（绿）| `module`（紫）| `event`（蓝）| `variable`（青）
-
-> 省略 `schemaType` 时默认为 `"blueprint"`，完全向后兼容。
+- 引脚类型：`Exec`（执行流）或 `Data`（数据流）
+- 未连线的固定值直接写值：`<- IN [Data: Delay]: 0.5`
 
 ---
 
 ## 从源码构建
 
 ```bash
-git clone https://github.com/jiulengjing/Json2Board
-cd Json2Board
+git clone https://github.com/jiulengjing/UE5-Graph-Text-Graph
+cd UE5-Graph-Text-Graph
 
-# 1. 构建前端
+# 前端
 npm install
-npm run build
+npm run dev      # 开发模式
+npm run build    # 生产构建
 
-# 2. 构建后端（release）
-cargo build --release --manifest-path src-tauri/Cargo.toml
-
-# 输出：src-tauri/target/release/Json2Board.exe（约 2.5 MB，自包含）
+# 桌面二进制（Rust/Tauri）
+npm run tauri build
 ```
 
-构建依赖：Node.js 18+、Rust stable
+依赖要求：Node.js 20+、Rust stable
 
 ---
 
 ## 技术栈
 
-| 层 | 技术 |
-|----|------|
-| 后端 | Rust + Tokio + Axum |
-| 前端 | React 19 + @xyflow/react + Tailwind CSS v4 + Vite |
-| 打包 | rust-embed -- 前端编译内嵌到二进制 |
-| 分发 | 单一 `.exe`，无运行时依赖 |
+| 层次 | 技术 |
+|------|------|
+| 前端 | React 19、@xyflow/react、Vite |
+| 布局引擎 | dagre（AI 生成图的自动排版） |
+| 解析器 | 自研 Two-Pass T3D 解析器 + GTG 逆向解析器 |
+| 桌面壳 | Tauri 2 + Rust |
 
 ---
 
-## License
+## 许可证
 
-MIT -- 可自由使用、修改和分发。
+MIT —— 自由使用、修改和分发。
