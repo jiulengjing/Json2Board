@@ -4,7 +4,7 @@
 
 **[简体中文](./README.zh.md)** | [Releases](https://github.com/jiulengjing/Json2Board/releases/latest) | [Issues](https://github.com/jiulengjing/Json2Board/issues)
 
-[![Release](https://img.shields.io/badge/Release-v0.0.2-blue?style=flat-square)](https://github.com/jiulengjing/Json2Board/releases/tag/v0.0.2)
+[![Release](https://img.shields.io/badge/Release-v0.0.3-blue?style=flat-square)](https://github.com/jiulengjing/Json2Board/releases/tag/v0.0.3)
 [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]()
 
@@ -14,7 +14,7 @@
 
 Json2Board renders JSON into interactive UE5-style node graphs in your browser — just paste AI-generated JSON and see the result instantly. No Unreal Engine needed.
 
-**Supported graph styles (v0.0.2):**
+**Supported graph styles (v0.0.3):**
 - 🔵 **Blueprint** — event/function/macro/variable nodes, exec flow + data pins
 - 🎨 **Material Editor** — data-only graph, texture/math/output nodes with glow
 - ✨ **Niagara** — particle modules with Spawn/Update/Render stage badges
@@ -22,7 +22,8 @@ Json2Board renders JSON into interactive UE5-style node graphs in your browser �
 One `schemaType` field in the JSON switches the rendering style automatically.
 
 **Key features:**
-- AI-first workflow -- three built-in prompts, one per graph style, for any LLM
+- AI-first workflow -- built-in prompts for each style, works with any LLM
+- JSON Edit Modal -- focused popup for editing, rendering, and one-click copying JSON
 - Multi-tab -- open multiple graphs side by side
 - `.j2b` files -- save/load graphs; name and schemaType embedded in JSON
 - HTTP API -- `POST /api/render` for scripting and plugin integration
@@ -33,7 +34,7 @@ One `schemaType` field in the JSON switches the rendering style automatically.
 ## Download & Run
 
 1. Go to [Releases](https://github.com/jiulengjing/Json2Board/releases/latest)
-2. Download `Json2Board-v0.0.2-windows-x64.zip`
+2. Download `Json2Board-v0.0.3-windows-x64.zip`
 3. Extract and **double-click `Json2Board.exe`**
 
 The app starts a local HTTP server and automatically opens your browser to `http://localhost:14178`.

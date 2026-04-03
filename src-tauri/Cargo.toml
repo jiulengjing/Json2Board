@@ -1,6 +1,6 @@
 [package]
 name = "Json2Board"
-version = "0.0.2"
+version = "0.0.3"
 description = "Blueprint Visualizer — render JSON as UE5-style blueprint node graphs"
 authors = ["Json2Board"]
 edition = "2021"

@@ -14,7 +14,6 @@ import {
 import BlueprintNode from './components/nodes/BlueprintNode';
 import MaterialNode from './components/nodes/MaterialNode';
 import NiagaraNode from './components/nodes/NiagaraNode';
-import JsonPanel from './components/JsonPanel';
 import HomeTab from './components/HomeTab';
 import {
   SchemaType, NodeData, PinData,
@@ -70,33 +69,85 @@ function getFlowNodeType(st: SchemaType) {
 // Paste JSON modal
 // ─────────────────────────────────────────────
 
-function PasteModal({ onClose, onApply }: { onClose: () => void; onApply: (p: JsonPayload) => void }) {
-  const [text, setText] = useState('');
+// ─────────────────────────────────────────────
+// JSON Edit Modal
+// ─────────────────────────────────────────────
+
+function JsonModal({
+  title = '编辑 JSON',
+  initialValue = '',
+  onClose,
+  onApply
+}: {
+  title?: string;
+  initialValue?: string;
+  onClose: () => void;
+  onApply: (p: JsonPayload) => void;
+}) {
+  const [text, setText] = useState(initialValue);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const apply = () => {
-    try { onApply(JSON.parse(text) as JsonPayload); onClose(); }
-    catch (e) { setError((e as Error).message); }
+    try {
+      const parsed = JSON.parse(text) as JsonPayload;
+      onApply(parsed);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 600, maxWidth: '90vw', background: '#1a1a2e', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 64px rgba(0,0,0,0.8)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', background: '#0f0f1a', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>📋 粘贴 JSON</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 720, maxWidth: '90vw', background: '#1c1c28', borderRadius: 16, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 32px 80px rgba(0,0,0,0.9)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: '#13131f', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>{title.includes('粘贴') ? '📋' : '📝'}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', letterSpacing: '0.02em' }}>{title}</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', width: 28, height: 28, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#f87171'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8'; }}>✕</button>
         </div>
-        <div style={{ padding: '16px 18px 18px' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: '#64748b' }}>粘贴符合 J2B 格式的 JSON（支持 blueprint / material / niagara），按 Ctrl+Enter 渲染</p>
+        <div style={{ padding: '20px' }}>
           <textarea autoFocus value={text} onChange={e => { setText(e.target.value); setError(''); }}
             onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') apply(); if (e.key === 'Escape') onClose(); }}
             placeholder={'{\n  "version": "1.0",\n  "schemaType": "blueprint",\n  "nodes": [...],\n  "edges": [...]\n}'}
             spellCheck={false}
-            style={{ width: '100%', height: 260, boxSizing: 'border-box', background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#c8c8c8', fontFamily: 'Consolas, monospace', fontSize: 12, lineHeight: 1.6, padding: 12, resize: 'none', outline: 'none' }} />
-          {error && <div style={{ marginTop: 8, fontSize: 11, color: '#f87171', background: 'rgba(220,38,38,0.1)', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(220,38,38,0.3)' }}>⚠ {error}</div>}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-            <button onClick={onClose} style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>取消</button>
-            <button onClick={apply} style={{ padding: '6px 20px', borderRadius: 6, border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.25)', color: '#93c5fd', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>渲染 (Ctrl+Enter)</button>
+            style={{ width: '100%', height: 400, boxSizing: 'border-box', background: '#0f0f18', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, color: '#e2e8f0', fontFamily: '"Fira Code", "Fira Mono", "Cascadia Code", Consolas, monospace', fontSize: 12, lineHeight: 1.6, padding: 16, resize: 'none', outline: 'none', transition: 'border-color 0.2s' }}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'} />
+          
+          {error && <div style={{ marginTop: 12, fontSize: 11, color: '#f87171', background: 'rgba(220,38,38,0.08)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>⚠️</span> <span>{error}</span>
+          </div>}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
+            <button onClick={copy} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: copied ? '#4ade80' : '#94a3b8', cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#f8fafc'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = copied ? '#4ade80' : '#94a3b8'; }}>
+              <span>{copied ? '✅' : '📄'}</span>
+              <span>{copied ? '已复制' : '一键复制'}</span>
+            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={onClose} style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}>
+                取消
+              </button>
+              <button onClick={apply} style={{ padding: '8px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #2563eb, #1e40af)', color: '#ffffff', cursor: 'pointer', fontSize: 13, fontWeight: 700, boxShadow: '0 4px 12px rgba(37,99,235,0.2)', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(37,99,235,0.3)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)'; }}>
+                渲染
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -141,7 +192,7 @@ function EmptyBoard({ onPaste, onUpload }: { onPaste: () => void; onUpload: () =
           <button onClick={onUpload} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94a3b8'; }}>
-            <span>📂</span><span>上传 .j2b</span>
+            <span>📂</span><span>打开 .j2b</span>
           </button>
         </div>
       </div>
@@ -153,10 +204,10 @@ function EmptyBoard({ onPaste, onUpload }: { onPaste: () => void; onUpload: () =
 // Board action bar
 // ─────────────────────────────────────────────
 
-function BoardActions({ onPaste, onUpload, onDownload }: { onPaste: () => void; onUpload: () => void; onDownload: () => void }) {
+function BoardActions({ onEdit, onUpload, onDownload }: { onEdit: () => void; onUpload: () => void; onDownload: () => void }) {
   const btns = [
-    { icon: '📋', label: '粘贴', action: onPaste },
-    { icon: '📂', label: '上传', action: onUpload },
+    { icon: '📝', label: '编辑', action: onEdit },
+    { icon: '📂', label: '打开', action: onUpload },
     { icon: '⬇', label: '下载', action: onDownload },
   ];
   return (
@@ -178,11 +229,11 @@ function BoardActions({ onPaste, onUpload, onDownload }: { onPaste: () => void; 
 // ─────────────────────────────────────────────
 
 function BoardEditor({
-  payload, onPayloadChange, onPaste, onUpload, onDownload,
+  payload, onPayloadChange, onUpload, onDownload,
 }: {
   payload: JsonPayload;
   onPayloadChange: (p: JsonPayload) => void;
-  onPaste: () => void; onUpload: () => void; onDownload: () => void;
+  onUpload: () => void; onDownload: () => void;
 }) {
   const schemaType: SchemaType = payload.schemaType ?? 'blueprint';
   const nodeTypes = getNodeTypes(schemaType);
@@ -193,6 +244,7 @@ function BoardEditor({
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     const flowNodes: Node<NodeData>[] = payload.nodes.map(n => ({
@@ -235,8 +287,16 @@ function BoardEditor({
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={bgColor} />
         <Controls showInteractive={false} />
       </ReactFlow>
-      <JsonPanel payload={payload} onApply={onPayloadChange} />
-      <BoardActions onPaste={onPaste} onUpload={onUpload} onDownload={onDownload} />
+      
+      <BoardActions onEdit={() => setIsEditOpen(true)} onUpload={onUpload} onDownload={onDownload} />
+      {isEditOpen && (
+        <JsonModal
+          title={`编辑 JSON: ${payload.name || '未命名'}`}
+          initialValue={JSON.stringify(payload, null, 2)}
+          onClose={() => setIsEditOpen(false)}
+          onApply={onPayloadChange}
+        />
+      )}
     </div>
   );
 }
@@ -469,7 +529,6 @@ function App() {
             key={activeTab.id}
             payload={activeTab.payload}
             onPayloadChange={handlePayloadChange}
-            onPaste={() => openPaste(activeTab.id)}
             onUpload={() => openUpload(activeTab.id)}
             onDownload={() => downloadTab(activeTab)}
           />
@@ -477,7 +536,11 @@ function App() {
       </div>
 
       {pasteTarget !== null && (
-        <PasteModal onClose={() => setPasteTarget(null)} onApply={handlePasteApply} />
+        <JsonModal
+          title="📋 粘贴 JSON"
+          onClose={() => setPasteTarget(null)}
+          onApply={handlePasteApply}
+        />
       )}
       <input ref={fileInputRef} type="file" accept=".j2b,.json" style={{ display: 'none' }} onChange={handleFileChange} />
 
