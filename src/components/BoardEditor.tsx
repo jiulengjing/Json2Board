@@ -102,14 +102,22 @@ export default function BoardEditor({
       const pin = src?.outputs?.find(p => p.id === e.sourceHandle);
       const pt  = pin?.type || 'data';
       const dt  = pin?.dataType;
-      const col = pt === 'exec' ? execColor : ((dt && pinColors[dt]) ?? '#9e9e9e');
+      let col = pt === 'exec' ? execColor : ((dt && pinColors[dt]) ?? '#9e9e9e');
+      if (schemaType === 'material' && pin?.label) {
+        const lbl = pin.label.toUpperCase();
+        if (lbl === 'R') col = '#ff3333';
+        else if (lbl === 'G') col = '#33ff33';
+        else if (lbl === 'B') col = '#33aaee';
+        else if (lbl === 'A') col = '#888888';
+        else if (lbl === 'RGB' || lbl === 'RGBA') col = '#ffffff';
+      }
       const isExec = pt === 'exec';
       return {
         id: `e-${i}-${e.source}-${e.target}`,
         source: e.source, sourceHandle: e.sourceHandle,
         target: e.target, targetHandle: e.targetHandle,
         type: edgeType,
-        style: { stroke: col, strokeWidth: isExec ? 2.5 : 1.8, opacity: 0.9 },
+        style: { stroke: col, strokeWidth: 2.5, opacity: 1, filter: `drop-shadow(0px 0px 3px ${col})` },
         markerEnd: isExec ? { type: MarkerType.ArrowClosed, color: col, width: 14, height: 14 } : undefined,
       };
     });

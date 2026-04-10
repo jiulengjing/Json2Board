@@ -10,6 +10,8 @@ export interface PinData {
   label: string;
   type: 'exec' | 'data';
   dataType?: string;
+  displayOnly?: boolean;   // Read-only value label (no wire handle)
+  defaultValue?: string;   // Value to display when displayOnly=true
 }
 
 // ── Shared node data interface for ReactFlow ──
@@ -24,11 +26,11 @@ export interface NodeData extends Record<string, unknown> {
 // ── Pin color palettes ──
 
 export const BLUEPRINT_PIN_COLORS: Record<string, string> = {
-  exec: '#ffffff', boolean: '#8b0000', integer: '#38b4f0',
-  float: '#93c847', double: '#93c847', string: '#f562a0',
-  text: '#f562a0', name: '#d0c040', vector: '#d9a800',
-  vector2d: '#e0c050', rotator: '#98b9f5', transform: '#f0803c',
-  object: '#1e90ff', class: '#6495ed', byte: '#008080', struct: '#4a90d9',
+  exec: '#FFFFFF', boolean: '#9B0000', integer: '#1EE5B3',
+  float: '#A1FF42', double: '#A1FF42', string: '#FF00D5',
+  text: '#FF00D5', name: '#d0c040', vector: '#FFC400',
+  vector2d: '#FFC400', rotator: '#98b9f5', transform: '#f0803c',
+  object: '#0070F0', class: '#6495ed', byte: '#008080', struct: '#002776', wildcard: '#808080',
 };
 
 export const MATERIAL_PIN_COLORS: Record<string, string> = {

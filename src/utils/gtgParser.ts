@@ -1,13 +1,14 @@
 import dagre from 'dagre';
 import { JsonPayload } from '../components/BoardEditor';
+import { SchemaType } from '../themes';
 
-export function parseGtgToPayload(gtgText: string): JsonPayload {
+export function parseGtgToPayload(gtgText: string, schemaType: SchemaType = 'blueprint'): JsonPayload {
   const gtgNodes: any[] = [];
   const gtgEdges: any[] = [];
   const edgeSet = new Set<string>();
 
   if (!gtgText) {
-    return { version: '1.0', schemaType: 'blueprint', nodes: [], edges: [] };
+    return { version: '1.0', schemaType, nodes: [], edges: [] };
   }
 
   // Split into lines
@@ -16,19 +17,27 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
   let currentNode: any = null;
 
   for (const line of lines) {
-    // 1. Check for node declaration: [Node: NodeName] (Type)
-    const nodeMatch = /\[Node:\s*(.+?)\]\s*\((.+?)\)/i.exec(line);
+    // 1. Check for node declaration: [Node: NodeName] (Type:DataType) {OriginalClass}
+    const nodeMatch = /\[Node:\s*([^\]]+)\]\s*\(([^):]+)(?::([^)]+))?\)(?:\s*@\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\))?(?:\s*\{([^}]+)\})?/i.exec(line);
     if (nodeMatch) {
       const nodeName = nodeMatch[1].trim();
       const typeLabel = nodeMatch[2].trim();
+      const dataType = nodeMatch[3] ? nodeMatch[3].trim() : undefined;
+      const posX = nodeMatch[4] ? parseInt(nodeMatch[4], 10) : undefined;
+      const posY = nodeMatch[5] ? parseInt(nodeMatch[5], 10) : undefined;
+      const originalClass = nodeMatch[6] ? nodeMatch[6].trim() : undefined;
       
       let uiType = 'function';
       const tlLower = typeLabel.toLowerCase();
       if (tlLower.includes('event') || tlLower.includes('input')) {
          uiType = 'event';
-      } else if (tlLower.includes('pure') || tlLower.includes('variable')) {
-         uiType = 'variable';
-      } else if (tlLower.includes('macro') || tlLower.includes('ifthenelse') || tlLower.includes('branch')) {
+      } else if (tlLower.includes('get') || tlLower.includes('coordinate') || tlLower.includes('texture')) {
+         uiType = 'get';
+      } else if (tlLower.includes('set')) {
+         uiType = 'set';
+      } else if (tlLower.includes('pure') || tlLower.includes('constant') || tlLower.includes('variable')) {
+         uiType = 'variable'; // Usually light green capsule
+      } else if (tlLower.includes('macro') || tlLower.includes('math') || tlLower.includes('branch')) {
          uiType = 'macro';
       } else if (tlLower.includes('reroute')) {
          uiType = 'reroute';
@@ -38,10 +47,10 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
         id: nodeName,
         type: 'blueprint',
         label: nodeName,
-        position: { x: 0, y: 0 },
+        position: { x: posX ?? 0, y: posY ?? 0 },
         inputs: [],
         outputs: [],
-        meta: { nodeType: uiType, typeLabel }
+        meta: { nodeType: uiType, typeLabel, dataType, originalClass, hasManualPos: posX !== undefined }
       };
       gtgNodes.push(currentNode);
       continue;
@@ -49,9 +58,26 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
 
     if (!currentNode) continue;
 
-    // 2. Check for IN pin: <- IN [Data/Exec: PinName]: SourceNode.SourcePin
-    // Example: <- IN [Exec: execute]: GripOrDropObjectClean_1.then
-    // Or constant: <- IN [Data: Condition]: false
+    // 2a. Check for INLINE DEFAULT value: <- IN [Data: PinName] = Value (no wire, renders as value box)
+    const inlineMatch = /<-\s*IN\s*\[(Data|Exec):\s*(.+?)\]\s*=\s*(.+)/i.exec(line);
+    if (inlineMatch) {
+      const pinName = inlineMatch[2].trim();
+      const pinValue = inlineMatch[3].trim();
+      const pinId = `in_${pinName}`;
+      if (!currentNode.inputs.find((p: any) => p.id === pinId)) {
+        currentNode.inputs.push({
+          id: pinId, label: pinName, type: 'data', dataType: 'string',
+          displayOnly: true, defaultValue: pinValue
+        });
+      } else {
+        const existing = currentNode.inputs.find((p: any) => p.id === pinId);
+        if (existing) { existing.displayOnly = true; existing.defaultValue = pinValue; }
+      }
+      continue;
+    }
+
+    // 2b. Check for IN pin with wire: <- IN [Data/Exec: PinName]: SourceNode.SourcePin
+    // Or legacy literal: <- IN [Data: PinName]: literalValue
     const inMatch = /<-\s*IN\s*\[(Data|Exec):\s*(.+?)\]:\s*(.+)/i.exec(line);
     if (inMatch) {
       const pinType = inMatch[1].toLowerCase() === 'exec' ? 'exec' : 'data';
@@ -63,10 +89,7 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
         currentNode.inputs.push({ id: pinId, label: pinName, type: pinType, dataType: pinType === 'exec' ? 'exec' : 'string' });
       }
 
-      // Check if target is a connection or a literal value
-      // A connection usually looks like NodeName.PinName. We'll simply check if it has a dot and isn't enclosed in quotes
-      // Wait, T3D defaults can be strings. Usually we just link it if it exists in the graph, but forward refs are possible.
-      // So we assume it's a link if it contains a dot and the part before dot doesn't start with ( or " 
+      // Determine if it's a wire connection (NodeName.PinName) or a literal value
       if (targetStr.includes('.') && !targetStr.startsWith('(') && !targetStr.startsWith('"') && !targetStr.startsWith('\'')) {
          const parts = targetStr.split('.');
          const sourceNodeName = parts[0];
@@ -84,10 +107,12 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
            });
          }
       } else {
-        // It's a literal value. We could attach it to the pin label for display purposes if we want.
-        // E.g. `Condition (false)`
+        // Legacy literal via :-syntax: treat as inline default value (no wire)
         const existingInput = currentNode.inputs.find((p: any) => p.id === pinId);
-        if (existingInput) { existingInput.label = `${pinName} = ${targetStr}`; }
+        if (existingInput) {
+          existingInput.displayOnly = true;
+          existingInput.defaultValue = targetStr;
+        }
       }
       continue;
     }
@@ -158,11 +183,14 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
   }
 
   try {
-    dagre.layout(g);
-    for (const n of gtgNodes) {
-      const nodeWithPos = g.node(n.id);
-      if (nodeWithPos) {
-        n.position = { x: nodeWithPos.x, y: nodeWithPos.y };
+    const useManualLayout = gtgNodes.some(n => n.meta?.hasManualPos);
+    if (!useManualLayout) {
+      dagre.layout(g);
+      for (const n of gtgNodes) {
+        const nodeWithPos = g.node(n.id);
+        if (nodeWithPos) {
+          n.position = { x: nodeWithPos.x, y: nodeWithPos.y };
+        }
       }
     }
   } catch (err) {
@@ -171,7 +199,7 @@ export function parseGtgToPayload(gtgText: string): JsonPayload {
 
   return {
     version: '1.0',
-    schemaType: 'blueprint',
+    schemaType,
     name: 'Generated by GTG-Script',
     nodes: gtgNodes,
     edges: gtgEdges

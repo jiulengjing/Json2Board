@@ -4,10 +4,10 @@ import { NodeData, PinData, BLUEPRINT_PIN_COLORS } from '../../themes';
 
 // ── UE5 blueprint header colors ──
 const NODE_THEME: Record<string, { h1: string; h2: string; border: string; icon: string }> = {
-  event:    { h1: '#9c1411', h2: '#7a0d0b', border: '#b52018', icon: '⚡' },
-  function: { h1: '#0d4d8f', h2: '#093c6e', border: '#1565c0', icon: 'ƒ' },
-  macro:    { h1: '#484848', h2: '#363636', border: '#666',     icon: 'M' },
-  variable: { h1: '#1a6b32', h2: '#125228', border: '#239e47', icon: '◈' },
+  event:    { h1: '#8b0000', h2: '#600000', border: '#b50000', icon: '⚡' },
+  function: { h1: '#004485', h2: '#002b5e', border: '#005bb5', icon: 'ƒ' },
+  macro:    { h1: '#2b2b2b', h2: '#1a1a1a', border: '#444444', icon: 'M' },
+  variable: { h1: '#123d12', h2: '#0a260a', border: '#1a5c1a', icon: '◈' },
 };
 
 function pinColor(pin: PinData): string {
@@ -21,7 +21,7 @@ const LABEL: React.CSSProperties = {
   whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.8)', userSelect: 'none',
 };
 
-function InputPin({ pin }: { pin: PinData }) {
+function InputPin({ pin, hideLabel }: { pin: PinData; hideLabel?: boolean }) {
   const c = pinColor(pin);
   const exec = pin.type === 'exec';
   return (
@@ -33,17 +33,17 @@ function InputPin({ pin }: { pin: PinData }) {
         border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.55)`,
         clipPath: exec ? ARROW : undefined, boxShadow: exec ? 'none' : `0 0 4px ${c}88`,
       }} />
-      {pin.label && <span style={LABEL}>{pin.label}</span>}
+      {pin.label && !hideLabel && <span style={LABEL}>{pin.label}</span>}
     </div>
   );
 }
 
-function OutputPin({ pin }: { pin: PinData }) {
+function OutputPin({ pin, hideLabel }: { pin: PinData; hideLabel?: boolean }) {
   const c = pinColor(pin);
   const exec = pin.type === 'exec';
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '24px', paddingRight: '18px' }}>
-      {pin.label && <span style={LABEL}>{pin.label}</span>}
+      {pin.label && !hideLabel && <span style={LABEL}>{pin.label}</span>}
       <Handle type="source" position={Position.Right} id={pin.id} style={{
         width: exec ? '14px' : '10px', height: exec ? '11px' : '10px',
         right: exec ? '-7px' : '-5px', top: '50%', transform: 'translateY(-50%)',
@@ -60,6 +60,32 @@ export default function BlueprintNode({ data }: { data: NodeData }) {
   const inputs  = [...data.inputs.filter(p => p.type === 'exec'),  ...data.inputs.filter(p => p.type !== 'exec')];
   const outputs = [...data.outputs.filter(p => p.type === 'exec'), ...data.outputs.filter(p => p.type !== 'exec')];
   const rows = Math.max(inputs.length, outputs.length, 1);
+
+  if (data.nodeType === 'get') {
+    const outDataPin = outputs.find(p => p.type !== 'exec');
+    const color = outDataPin ? pinColor(outDataPin) : '#123d12';
+    
+    return (
+      <div style={{
+        minWidth: '50px', padding: '4px 14px', borderRadius: '20px',
+        background: `linear-gradient(180deg, ${color}44 0%, ${color}11 100%)`, 
+        border: `1px solid ${color}88`,
+        boxShadow: `0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+        backdropFilter: 'blur(4px)'
+      }}>
+        <div style={{ position: 'absolute', left: 0 }}>
+           {inputs.map(p => <InputPin key={p.id} pin={p} hideLabel={true} />)}
+        </div>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0', userSelect: 'none', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+          {data.label}
+        </span>
+        <div style={{ position: 'absolute', right: 0 }}>
+          {outputs.map(p => <OutputPin key={p.id} pin={p} hideLabel={true} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
