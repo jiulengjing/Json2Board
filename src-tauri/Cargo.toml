@@ -1,6 +1,6 @@
 [package]
 name = "UE5-GTG"
-version = "0.1.0"
+version = "0.2.0"
 description = "UE5-Graph-Text-Graph — Blueprint bidirectional compiler"
 authors = ["UE5-Graph-Text-Graph"]
 edition = "2021"

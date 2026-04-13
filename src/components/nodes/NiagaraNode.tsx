@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
 import { useMemo } from 'react';
-import { NodeData, PinData, NIAGARA_PIN_COLORS } from '../../themes';
+import { NodeData, PinData, getPinColor } from '../../themes';
 
 // ── Niagara node header colors (warm, energetic) ──
 const NODE_THEME: Record<string, { h1: string; h2: string; border: string; glow: string; icon: string }> = {
@@ -18,49 +18,63 @@ const STAGE_COLORS: Record<NiagaraStage, { bg: string; text: string }> = {
   render: { bg: 'rgba(56,180,240,0.18)',  text: '#60ccff' },
 };
 
-// Solid right-pointing triangle for Niagara exec pins
-const TRIANGLE = 'polygon(0% 0%, 100% 50%, 0% 100%)';
+const TRIANGLE_PATH = 'polygon(0% 0%, 100% 50%, 0% 100%)';
 
-const LABEL: React.CSSProperties = {
-  fontSize: '11px', color: '#d0b8f8', lineHeight: 1, whiteSpace: 'nowrap', userSelect: 'none',
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: '11px', color: '#d0b8f8', fontWeight: 500,
+  textShadow: '0 1px 2px rgba(0,0,0,0.9)', userSelect: 'none',
+  padding: '0 4px',
 };
 
-function niaPinColor(pin: PinData): string {
-  if (pin.type === 'exec') return '#ff8040';
-  return (pin.dataType && NIAGARA_PIN_COLORS[pin.dataType]) ?? '#9e9e9e';
+const VALUE_STYLE: React.CSSProperties = {
+  fontSize: '10px', color: '#a8a', 
+  background: 'rgba(0,0,0,0.4)', 
+  padding: '1px 5px', borderRadius: '3px',
+  marginLeft: '6px', fontStyle: 'italic',
+};
+
+function PinValue({ value }: { value?: string }) {
+  if (!value || value === '0.0' || value === '0') return null;
+  const displayValue = value.length > 15 ? value.substring(0, 12) + '...' : value;
+  return <div style={VALUE_STYLE}>{displayValue}</div>;
 }
 
 function NiaInputPin({ pin }: { pin: PinData }) {
-  const c = niaPinColor(pin);
+  const c = getPinColor('niagara', pin);
   const exec = pin.type === 'exec';
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '24px', paddingLeft: '18px' }}>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '26px', paddingLeft: '20px' }}>
       <Handle type="target" position={Position.Left} id={pin.id} style={{
         width: exec ? '12px' : '10px', height: exec ? '12px' : '10px',
         left: exec ? '-6px' : '-5px', top: '50%', transform: 'translateY(-50%)',
         borderRadius: exec ? '0' : '50%', background: c,
-        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.5)`,
-        clipPath: exec ? TRIANGLE : undefined,
-        boxShadow: exec ? `0 0 6px ${c}` : `0 0 4px ${c}88`,
+        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.6)`,
+        clipPath: exec ? TRIANGLE_PATH : undefined,
+        boxShadow: exec ? `0 0 8px ${c}88` : `0 0 4px ${c}44`,
+        zIndex: 10
       }} />
-      {pin.label && <span style={LABEL}>{pin.label}</span>}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {pin.label && <span style={LABEL_STYLE}>{pin.label}</span>}
+        <PinValue value={pin.defaultValue} />
+      </div>
     </div>
   );
 }
 
 function NiaOutputPin({ pin }: { pin: PinData }) {
-  const c = niaPinColor(pin);
+  const c = getPinColor('niagara', pin);
   const exec = pin.type === 'exec';
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '24px', paddingRight: '18px' }}>
-      {pin.label && <span style={LABEL}>{pin.label}</span>}
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '26px', paddingRight: '20px' }}>
+      {pin.label && <span style={LABEL_STYLE}>{pin.label}</span>}
       <Handle type="source" position={Position.Right} id={pin.id} style={{
         width: exec ? '12px' : '10px', height: exec ? '12px' : '10px',
         right: exec ? '-6px' : '-5px', top: '50%', transform: 'translateY(-50%)',
         borderRadius: exec ? '0' : '50%', background: c,
-        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.5)`,
-        clipPath: exec ? TRIANGLE : undefined,
-        boxShadow: exec ? `0 0 6px ${c}` : `0 0 4px ${c}88`,
+        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.6)`,
+        clipPath: exec ? TRIANGLE_PATH : undefined,
+        boxShadow: exec ? `0 0 8px ${c}88` : `0 0 4px ${c}44`,
+        zIndex: 10
       }} />
     </div>
   );
@@ -71,45 +85,58 @@ export default function NiagaraNode({ data }: { data: NodeData }) {
   const stage = data.meta?.stage as NiagaraStage | undefined;
   const stageStyle = stage ? STAGE_COLORS[stage] : undefined;
 
-  const inputs  = [...data.inputs.filter(p => p.type === 'exec'),  ...data.inputs.filter(p => p.type !== 'exec')];
-  const outputs = [...data.outputs.filter(p => p.type === 'exec'), ...data.outputs.filter(p => p.type !== 'exec')];
-  const rows = Math.max(inputs.length, outputs.length, 1);
+  const sortedInputs  = useMemo(() => 
+    [...data.inputs.filter(p => p.type === 'exec'), ...data.inputs.filter(p => p.type !== 'exec')],
+    [data.inputs]
+  );
+  const sortedOutputs = useMemo(() => 
+    [...data.outputs.filter(p => p.type === 'exec'), ...data.outputs.filter(p => p.type !== 'exec')],
+    [data.outputs]
+  );
+  
+  const rows = Math.max(sortedInputs.length, sortedOutputs.length, 1);
 
   return (
     <div style={{
-      minWidth: '200px', borderRadius: '8px', overflow: 'visible',
-      border: `1px solid ${theme.border}`,
-      boxShadow: `0 0 0 1px rgba(0,0,0,0.95), 0 0 20px ${theme.glow}, 0 8px 28px rgba(0,0,0,0.85)`,
+      minWidth: '200px', borderRadius: '10px', overflow: 'hidden',
+      border: `1.5px solid rgba(0,0,0,0.8)`,
+      boxShadow: `0 10px 40px rgba(0,0,0,0.6), 0 0 20px ${theme.glow}`,
       background: '#1a1518', position: 'relative',
     }}>
       {/* Header */}
       <div style={{
         background: `linear-gradient(180deg, ${theme.h1} 0%, ${theme.h2} 100%)`,
-        borderRadius: '7px 7px 0 0', padding: '5px 10px',
-        display: 'flex', alignItems: 'center', gap: '7px',
-        borderBottom: `1px solid ${theme.border}66`, minHeight: '28px',
+        padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px',
+        borderBottom: `1.5px solid rgba(0,0,0,0.5)`, position: 'relative'
       }}>
-        <span style={{ fontSize: '12px', opacity: 0.85, lineHeight: 1, flexShrink: 0 }}>{theme.icon}</span>
-        <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: '#fff', letterSpacing: '0.03em', lineHeight: 1, whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{data.label}</span>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+        <span style={{ fontSize: '11px', opacity: 0.8 }}>{theme.icon}</span>
+        <span style={{ flex: 1, fontSize: '12px', fontWeight: 700, color: '#fff', letterSpacing: '0.02em', textShadow: '0 1px 4px #000' }}>{data.label}</span>
         {stageStyle && (
           <span style={{
-            fontSize: '9px', fontWeight: 700, color: stageStyle.text, background: stageStyle.bg,
-            border: `1px solid ${stageStyle.text}44`, borderRadius: '3px',
-            padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0,
+            fontSize: '9px', fontWeight: 800, color: stageStyle.text, background: stageStyle.bg,
+            border: `1px solid ${stageStyle.text}55`, borderRadius: '3px',
+            padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
           }}>{stage}</span>
         )}
       </div>
-      {/* Pin area */}
+
+      {/* Body */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr',
-        paddingTop: '4px', paddingBottom: '5px',
-        minHeight: `${rows * 24 + 9}px`,
-        background: 'linear-gradient(180deg, #1e1820 0%, #18141a 100%)',
-        borderRadius: '0 0 7px 7px',
+        padding: '8px 0', minHeight: `${rows * 26 + 10}px`,
+        background: 'linear-gradient(180deg, #1f1a1d 0%, #151114 100%)',
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>{inputs.map(p => <NiaInputPin key={p.id} pin={p} />)}</div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>{outputs.map(p => <NiaOutputPin key={p.id} pin={p} />)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {sortedInputs.map(p => <NiaInputPin key={p.id} pin={p} />)}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {sortedOutputs.map(p => <NiaOutputPin key={p.id} pin={p} />)}
+        </div>
       </div>
+      
+      {/* Gloss accent */}
+      <div style={{ position: 'absolute', inset: 0, border: '1px solid rgba(255,255,255,0.03)', pointerEvents: 'none', borderRadius: '10px' }} />
     </div>
   );
 }

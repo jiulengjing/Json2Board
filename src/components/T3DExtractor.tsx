@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parseT3D } from '../utils/t3dParser';
+import { parseT3D } from '../utils/blueprintParser';
 import BoardEditor, { JsonPayload } from './BoardEditor';
 
 const AI_PROMPT = `这是一段虚幻引擎 (Unreal Engine) 项目中的蓝图核心逻辑流。

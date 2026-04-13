@@ -14,6 +14,7 @@ import {
 import BlueprintNode from './nodes/BlueprintNode';
 import MaterialNode from './nodes/MaterialNode';
 import NiagaraNode from './nodes/NiagaraNode';
+import BlueprintEdge from './edges/BlueprintEdge';
 import { SchemaType, NodeData, getPinColors } from '../themes';
 
 // -- We need JsonPayload interface here --
@@ -35,19 +36,22 @@ export interface JsonPayload {
   edges: JsonEdge[];
 }
 
-const BLUEPRINT_NODE_TYPES = { blueprint: BlueprintNode };
-const MATERIAL_NODE_TYPES  = { material: MaterialNode };
-const NIAGARA_NODE_TYPES   = { niagara: NiagaraNode };
+const NODE_TYPES = {
+  blueprint: BlueprintNode,
+  material: MaterialNode,
+  niagara: NiagaraNode
+};
+
+const EDGE_TYPES = {
+  blueprint: BlueprintEdge
+};
 
 function getNodeTypes(st: SchemaType) {
-  if (st === 'material') return MATERIAL_NODE_TYPES;
-  if (st === 'niagara')  return NIAGARA_NODE_TYPES;
-  return BLUEPRINT_NODE_TYPES;
+  return NODE_TYPES;
 }
+
 function getFlowNodeType(st: SchemaType) {
-  if (st === 'material') return 'material';
-  if (st === 'niagara')  return 'niagara';
-  return 'blueprint';
+  return st || 'blueprint';
 }
 
 function BoardActions({ onEdit, onUpload, onDownload }: { onEdit?: () => void; onUpload?: () => void; onDownload?: () => void }) {
@@ -60,10 +64,10 @@ function BoardActions({ onEdit, onUpload, onDownload }: { onEdit?: () => void; o
   if (btns.length === 0) return null;
 
   return (
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', gap: 4, background: 'rgba(15,15,20,0.88)', backdropFilter: 'blur(12px)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.09)', padding: '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
+    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', gap: 4, background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(12px)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', padding: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
       {btns.map(({ icon, label, action }) => (
-        <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent', color: '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.12s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0'; }}
+        <button key={label} onClick={action} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent', color: '#94a3b8', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
           title={label}>
           <span>{icon}</span><span>{label}</span>
@@ -82,11 +86,10 @@ export default function BoardEditor({
   onDownload?: () => void;
 }) {
   const schemaType: SchemaType = payload.schemaType ?? 'blueprint';
-  const nodeTypes = getNodeTypes(schemaType);
   const flowType = getFlowNodeType(schemaType);
   const pinColors = getPinColors(schemaType);
   const execColor = schemaType === 'niagara' ? '#ff8040' : '#ffffff';
-  const edgeType  = 'default'; 
+  const edgeType  = 'blueprint'; 
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -94,15 +97,18 @@ export default function BoardEditor({
   useEffect(() => {
     const flowNodes: Node<NodeData>[] = payload.nodes.map(n => ({
       id: n.id, type: flowType, position: n.position || { x: 0, y: 0 },
-      data: { nodeType: n.meta?.nodeType as string || 'function', label: n.label || n.id, inputs: n.inputs || [], outputs: n.outputs || [], meta: n.meta },
+      data: { nodeType: (n.meta?.nodeType as string) || 'function', label: n.label || n.id, inputs: n.inputs || [], outputs: n.outputs || [], meta: n.meta },
     }));
 
     const flowEdges: Edge[] = payload.edges.map((e, i) => {
-      const src = payload.nodes.find(n => n.id === e.source);
-      const pin = src?.outputs?.find(p => p.id === e.sourceHandle);
+      const srcNode = payload.nodes.find(node => node.id === e.source);
+      const pin = srcNode?.outputs?.find(p => p.id === e.sourceHandle);
       const pt  = pin?.type || 'data';
-      const dt  = pin?.dataType;
-      let col = pt === 'exec' ? execColor : ((dt && pinColors[dt]) ?? '#9e9e9e');
+      const dt  = (pin?.dataType as string || '').toLowerCase();
+      
+      // Detailed mapping for common UE5 categories
+      let col = pt === 'exec' ? execColor : (dt ? (pinColors[dt] || pinColors[dt.replace('bool', 'boolean')] || pinColors[dt.replace('int', 'integer')] || '#9e9e9e') : '#9e9e9e');
+      
       if (schemaType === 'material' && pin?.label) {
         const lbl = pin.label.toUpperCase();
         if (lbl === 'R') col = '#ff3333';
@@ -111,32 +117,37 @@ export default function BoardEditor({
         else if (lbl === 'A') col = '#888888';
         else if (lbl === 'RGB' || lbl === 'RGBA') col = '#ffffff';
       }
+      
       const isExec = pt === 'exec';
       return {
         id: `e-${i}-${e.source}-${e.target}`,
         source: e.source, sourceHandle: e.sourceHandle,
         target: e.target, targetHandle: e.targetHandle,
         type: edgeType,
-        style: { stroke: col, strokeWidth: 2.5, opacity: 1, filter: `drop-shadow(0px 0px 3px ${col})` },
+        style: { stroke: col, strokeWidth: 2.8, opacity: 1 },
         markerEnd: isExec ? { type: MarkerType.ArrowClosed, color: col, width: 14, height: 14 } : undefined,
       };
     });
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [payload, setNodes, setEdges, flowType, execColor, pinColors, edgeType]);
+  }, [payload, setNodes, setEdges, flowType, execColor, pinColors, edgeType, schemaType]);
 
-  const bgColor = schemaType === 'niagara' ? '#1e1820' : schemaType === 'material' ? '#161620' : '#1a1a1a';
+  const bgColor = '#1b1b1b';
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: bgColor }}>
       <ReactFlow nodes={nodes} edges={edges}
         onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes} fitView colorMode="dark"
+        nodeTypes={NODE_TYPES} edgeTypes={EDGE_TYPES}
+        fitView colorMode="dark"
         panOnDrag={[1, 2]} selectionOnDrag selectionMode={SelectionMode.Partial}
         panOnScroll={false} onContextMenu={e => e.preventDefault()}
-        minZoom={0.1} maxZoom={2.5} defaultEdgeOptions={{ type: edgeType }}>
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={bgColor} />
+        minZoom={0.05} maxZoom={4} defaultEdgeOptions={{ type: edgeType }}>
+        
+        {/* Subtle Dots for Depth */}
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} style={{ opacity: 0.05 }} color="#ffffff" />
+        
         <Controls showInteractive={false} />
       </ReactFlow>
       

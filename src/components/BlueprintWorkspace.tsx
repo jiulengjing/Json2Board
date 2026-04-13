@@ -1,20 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { parseT3D } from '../utils/t3dParser';
+import { parseT3D } from '../utils/blueprintParser';
 import { parseGtgToPayload } from '../utils/gtgParser';
+import { restoreT3D } from '../utils/liteT3DRestorer';
 import BoardEditor, { JsonPayload } from './BoardEditor';
 
 // Schema & AI Skills
-import { SchemaType, SCHEMA_LABEL, SCHEMA_ICON, SCHEMA_ACCENT } from '../themes';
-import { detectRawTextSchema, detectGtgScriptSchema } from '../utils/schema/SchemaRegistry';
+import { SCHEMA_LABEL, SCHEMA_ICON, SCHEMA_ACCENT } from '../themes';
 import { BLUEPRINT_SKILL } from '../prompts/BlueprintSkill';
-import { MATERIAL_SKILL } from '../prompts/MaterialSkill';
-import { NIAGARA_SKILL } from '../prompts/NiagaraSkill';
-
-const skills: Record<SchemaType, string> = {
-  blueprint: BLUEPRINT_SKILL,
-  material: MATERIAL_SKILL,
-  niagara: NIAGARA_SKILL
-};
 
 interface Props { tabId: string; }
 
@@ -43,14 +35,15 @@ const SplitterV = ({ onMouseDown }: { onMouseDown: () => void }) => (
   />
 );
 
-export default function GtgWorkspace({ }: Props) {
+export default function BlueprintWorkspace({ tabId }: Props) {
   const [t3dInput, setT3dInput] = useState('');
   const [gtgInput, setGtgInput] = useState('');
   const [payloadOutput, setPayloadOutput] = useState<JsonPayload | null>(null);
   
-  const [activeSchema, setActiveSchema] = useState<SchemaType>('blueprint');
+  const activeSchema = 'blueprint';
   const [copiedText, setCopiedText] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [restoredT3D, setRestoredT3D] = useState(false);
 
   const [topHeight, setTopHeight] = useState(50);   // % of left col
   const [leftWidth, setLeftWidth] = useState(38);   // % of total
@@ -62,10 +55,8 @@ export default function GtgWorkspace({ }: Props) {
   // ------ Parsing ------
   const handleT3dChange = useCallback((val: string) => {
     setT3dInput(val);
-    const schema = detectRawTextSchema(val);
-    setActiveSchema(schema);
     try { 
-      const r = parseT3D(val, schema); 
+      const r = parseT3D(val, 'blueprint'); 
       setGtgInput(r.dsl); 
       setPayloadOutput(r.payload); 
     } catch (err) { 
@@ -75,12 +66,22 @@ export default function GtgWorkspace({ }: Props) {
 
   const handleGtgChange = useCallback((val: string) => {
     setGtgInput(val);
-    const schema = detectGtgScriptSchema(val);
-    setActiveSchema(schema);
+    
+    // Clear the Raw input if we are editing Lite-T3D
+    if (val.trim()) {
+      setT3dInput("");
+    }
+
     try { 
-      setPayloadOutput(parseGtgToPayload(val, schema)); 
+      // If the input is T3D style (Lite-T3D), use parseT3D
+      if (val.trim().startsWith('Begin Object')) {
+        setPayloadOutput(parseT3D(val, 'blueprint').payload);
+      } else {
+        // Fallback to arrow syntax (GTG-Script)
+        setPayloadOutput(parseGtgToPayload(val, 'blueprint')); 
+      }
     } catch (err) { 
-      console.error("GTG Parse Error:", err); 
+      console.error("Parse Error:", err); 
     }
   }, []);
 
@@ -103,8 +104,15 @@ export default function GtgWorkspace({ }: Props) {
   }, []);
 
   // ------ Actions ------
-  const paste = async (handler: (v: string) => void) => {
-    try { const t = await navigator.clipboard.readText(); if (t) handler(t); } catch { }
+  const handleClearT3D = () => {
+    setT3dInput('');
+    setGtgInput('');
+    setPayloadOutput(null);
+  };
+
+  const handleClearLite = () => {
+    setGtgInput('');
+    setPayloadOutput(null);
   };
 
   const copy = (text: string, setter: (v: boolean) => void) => {
@@ -156,10 +164,10 @@ export default function GtgWorkspace({ }: Props) {
           <PanelHeader title="Raw 原始蓝图内容" showBadge>
             <button
               style={btnBase}
-              onClick={() => paste(handleT3dChange)}
-              onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; }}
-            >粘贴</button>
+              onClick={handleClearT3D}
+              onMouseEnter={e => { e.currentTarget.style.background = '#ef444420'; e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = '#f8717140'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; e.currentTarget.style.borderColor = '#3f3f46'; }}
+            >清空</button>
           </PanelHeader>
           <textarea
             value={t3dInput}
@@ -177,15 +185,15 @@ export default function GtgWorkspace({ }: Props) {
 
         <SplitterH onMouseDown={() => { isDragH.current = true; }} />
 
-        {/* Bottom: GTG-Script */}
+        {/* Bottom: Lite-T3D */}
         <div style={{ flex: 1, minHeight: 60, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <PanelHeader title="GTG-Script AI 指令层">
+          <PanelHeader title="Lite-T3D (AI Context)">
             <button
               style={btnBase}
-              onClick={() => paste(handleGtgChange)}
-              onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; }}
-            >粘贴</button>
+              onClick={handleClearLite}
+              onMouseEnter={e => { e.currentTarget.style.background = '#ef444420'; e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = '#f8717140'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; e.currentTarget.style.borderColor = '#3f3f46'; }}
+            >清空</button>
             <button
               style={{ ...btnBase, color: copiedText ? '#4ade80' : '#a1a1aa', borderColor: copiedText ? '#4ade8040' : '#3f3f46' }}
               onClick={() => copy(gtgInput, setCopiedText)}
@@ -193,8 +201,21 @@ export default function GtgWorkspace({ }: Props) {
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >{copiedText ? '已复制' : '复制文本'}</button>
             <button
+              style={{ ...btnBase, color: restoredT3D ? '#4ade80' : '#a1a1aa', borderColor: restoredT3D ? '#4ade8040' : '#3f3f46' }}
+              onClick={() => {
+                if (!gtgInput.trim()) return;
+                const full = restoreT3D(gtgInput);
+                setT3dInput(full);
+                navigator.clipboard.writeText(full);
+                setRestoredT3D(true);
+                setTimeout(() => setRestoredT3D(false), 2500);
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >{restoredT3D ? '已还原并复制 ✓' : '还原 T3D'}</button>
+            <button
               style={{ ...btnBase, color: copiedPrompt ? '#4ade80' : '#a1a1aa', borderColor: copiedPrompt ? '#4ade8040' : '#3f3f46' }}
-              onClick={() => copy(skills[activeSchema].trim(), setCopiedPrompt)}
+              onClick={() => copy(BLUEPRINT_SKILL.trim(), setCopiedPrompt)}
               onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >{copiedPrompt ? '已复制 ✓' : `复制 ${SCHEMA_LABEL[activeSchema]} 专精技能`}</button>
@@ -202,7 +223,7 @@ export default function GtgWorkspace({ }: Props) {
           <textarea
             value={gtgInput}
             onChange={e => handleGtgChange(e.target.value)}
-            placeholder="GTG-Script 提取结果将显示在此，也可直接粘贴 AI 生成的 GTG-Script..."
+            placeholder="Lite-T3D 提取结果将显示在此，也可直接粘贴 AI 生成的 Lite-T3D..."
             spellCheck={false}
             style={{
               flex: 1, width: '100%', padding: '12px', boxSizing: 'border-box',
@@ -225,8 +246,7 @@ export default function GtgWorkspace({ }: Props) {
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#3f3f46', fontSize: '13px', letterSpacing: '0.02em', flexDirection: 'column', gap: '8px'
           }}>
-            <div>粘贴代码后，对应模块的渲染图将在此出现</div>
-            <div style={{ fontSize: '11px', color: '#27272a' }}>支持 Blueprints, Materials, Niagara...</div>
+            <div style={{ fontSize: '11px', color: '#27272a' }}>专为 Blueprint Nodes 设计</div>
           </div>
         )}
       </div>

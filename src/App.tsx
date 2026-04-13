@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import HomeTab from './components/HomeTab';
-import GtgWorkspace from './components/GtgWorkspace';
+import BlueprintWorkspace from './components/BlueprintWorkspace';
+import MaterialWorkspace from './components/MaterialWorkspace';
+
+type WorkspaceType = 'blueprint' | 'material';
 
 export interface TabData {
   id: string;
   title: string;
+  type: WorkspaceType;
 }
 
 export default function App() {
-  const [tabs, setTabs] = useState<TabData[]>([{ id: 'workspace-1', title: 'Blueprint 1' }]);
+  const [tabs, setTabs] = useState<TabData[]>([{ id: 'workspace-1', title: 'Blueprint 1', type: 'blueprint' }]);
   const [activeTabId, setActiveTabId] = useState<string>('workspace-1');
 
-  const handleAddTab = () => {
+  const handleAddTab = (type: WorkspaceType) => {
     const id = `workspace-${Date.now()}`;
-    const title = `Blueprint ${tabs.length + 1}`;
-    setTabs(prev => [...prev, { id, title }]);
+    const typeCount = tabs.filter(t => t.type === type).length;
+    const title = type === 'blueprint' ? `Blueprint ${typeCount + 1}` : `Material ${typeCount + 1}`;
+    setTabs(prev => [...prev, { id, title, type }]);
     setActiveTabId(id);
   };
 
@@ -95,19 +100,33 @@ export default function App() {
             </div>
           ))}
 
-          {/* New Tab Button */}
-          <button
-            onClick={handleAddTab}
-            title="新建蓝图工作区 (New Blueprint Workspace)"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '22px', height: '22px', borderRadius: '4px',
-              background: 'transparent', border: 'none', color: '#52525b',
-              cursor: 'pointer', fontSize: '14px', transition: 'all 0.1s', flexShrink: 0
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#a1a1aa'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#52525b'; }}
-          >+</button>
+          {/* New Tab Buttons */}
+          <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
+            <button
+              onClick={() => handleAddTab('blueprint')}
+              title="新建蓝图工作区"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                padding: '0 8px', height: '22px', borderRadius: '4px',
+                background: 'transparent', border: '1px solid #3f3f46', color: '#a1a1aa',
+                cursor: 'pointer', fontSize: '11px', transition: 'all 0.1s', flexShrink: 0
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; }}
+            >+ 蓝图</button>
+            <button
+              onClick={() => handleAddTab('material')}
+              title="新建材质工作区"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                padding: '0 8px', height: '22px', borderRadius: '4px',
+                background: 'transparent', border: '1px solid #3f3f46', color: '#a1a1aa',
+                cursor: 'pointer', fontSize: '11px', transition: 'all 0.1s', flexShrink: 0
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a1a1aa'; }}
+            >+ 材质</button>
+          </div>
         </div>
       </div>
 
@@ -118,7 +137,8 @@ export default function App() {
         </div>
         {tabs.map(tab => (
           <div key={tab.id} style={{ position: 'absolute', inset: 0, display: activeTabId === tab.id ? 'flex' : 'none' }}>
-            <GtgWorkspace tabId={tab.id} />
+            {tab.type === 'blueprint' && <BlueprintWorkspace tabId={tab.id} />}
+            {tab.type === 'material' && <MaterialWorkspace tabId={tab.id} />}
           </div>
         ))}
       </div>

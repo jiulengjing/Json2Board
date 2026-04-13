@@ -17,14 +17,17 @@ export function detectRawTextSchema(text: string): SchemaType {
 }
 
 /**
- * Detects the schema type of a generated GTG-Script block.
- * We can infer it by looking at the types of the nodes declared: (material), (niagara), etc.
+ * Detects the schema type of a generated Lite-T3D or GTG-Script block.
  */
-export function detectGtgScriptSchema(gtgText: string): SchemaType {
-  const gtg = gtgText || '';
-  // Simple heuristic based on GTG syntax: [Node: XYZ] (type)
-  const nodeTypeMatches = Array.from(gtg.matchAll(/\[Node:\s*[^\]]+\]\s*\(([^)]+)\)/gi));
+export function detectDslSchema(text: string): SchemaType {
+  const t = text || '';
   
+  // 1. Lite-T3D check (original class names)
+  if (t.includes('MaterialGraphNode') || t.includes('MaterialExpression')) return 'material';
+  if (t.includes('NiagaraNode')) return 'niagara';
+
+  // 2. Legacy GTG-Script check (type labels)
+  const nodeTypeMatches = Array.from(t.matchAll(/\[Node:\s*[^\]]+\]\s*\(([^)]+)\)/gi));
   for (const match of nodeTypeMatches) {
     const typeLabel = match[1].toLowerCase();
     if (typeLabel.includes('root') || typeLabel.includes('texture') || typeLabel.includes('coordinate') || typeLabel.includes('math') || typeLabel.includes('material')) return 'material';

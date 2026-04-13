@@ -1,118 +1,125 @@
 import { Handle, Position } from '@xyflow/react';
 import { useMemo } from 'react';
-import { NodeData, PinData, BLUEPRINT_PIN_COLORS } from '../../themes';
+import { NodeData, PinData, getPinColor } from '../../themes';
 
-// ── UE5 blueprint header colors ──
-const NODE_THEME: Record<string, { h1: string; h2: string; border: string; icon: string }> = {
-  event:    { h1: '#8b0000', h2: '#600000', border: '#b50000', icon: '⚡' },
-  function: { h1: '#004485', h2: '#002b5e', border: '#005bb5', icon: 'ƒ' },
-  macro:    { h1: '#2b2b2b', h2: '#1a1a1a', border: '#444444', icon: 'M' },
-  variable: { h1: '#123d12', h2: '#0a260a', border: '#1a5c1a', icon: '◈' },
+// ── UE5 blueprint header colors (Simplified Solid Palette) ──
+const NODE_THEME: Record<string, { bg: string; border: string; icon: string }> = {
+  event:    { bg: '#a12323', border: '#ff4444', icon: '⚡' },
+  function: { bg: '#2359a1', border: '#44aaff', icon: 'ƒ' },
+  macro:    { bg: '#4a4a4a', border: '#888888', icon: 'M' },
+  variable: { bg: '#23a159', border: '#44ffaa', icon: '◈' },
+  get:      { bg: '#2c3e50', border: '#34495e', icon: '👁' },
+  set:      { bg: '#2359a1', border: '#44aaff', icon: '✎' },
+  math:     { bg: '#ecd67a', border: '#f3e5ab', icon: '∑' }, // Pale Yellow
 };
 
-function pinColor(pin: PinData): string {
-  if (pin.type === 'exec') return '#ffffff';
-  return (pin.dataType && BLUEPRINT_PIN_COLORS[pin.dataType]) ?? '#9e9e9e';
+// SVG Paths for Pins
+const EXEC_PATH = "M 0 0 L 7 0 L 11 5 L 7 10 L 0 10 Z";
+const DATA_PATH = "M 5 0 A 5 5 0 1 1 5 10 A 5 5 0 1 1 5 0 Z";
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: '11px', color: '#e0e0e0', fontWeight: 500,
+  textShadow: '0 1px 2px #000', userSelect: 'none', padding: '0 4px',
+};
+
+const VALUE_STYLE: React.CSSProperties = {
+  fontSize: '10px', color: '#999', background: 'rgba(0,0,0,0.4)', 
+  padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)',
+  marginLeft: '6px', fontStyle: 'italic', maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis'
+};
+
+function PinIcon({ color, type, isConnected }: { color: string; type: string; isConnected: boolean }) {
+  const isExec = type === 'exec';
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" style={{ overflow: 'visible' }}>
+      <path 
+        d={isExec ? EXEC_PATH : DATA_PATH} 
+        fill={isConnected ? color : 'transparent'} 
+        stroke={color} 
+        strokeWidth="1.5"
+        style={{ filter: isConnected ? `drop-shadow(0 0 3px ${color})` : 'none' }}
+      />
+      {!isConnected && !isExec && <circle cx="5" cy="5" r="1.5" fill={color} opacity="0.4" />}
+    </svg>
+  );
 }
 
-const ARROW = 'polygon(0% 20%, 55% 20%, 55% 0%, 100% 50%, 55% 100%, 55% 80%, 0% 80%)';
-const LABEL: React.CSSProperties = {
-  fontSize: '12px', color: '#c8c8c8', lineHeight: 1,
-  whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.8)', userSelect: 'none',
-};
-
 function InputPin({ pin, hideLabel }: { pin: PinData; hideLabel?: boolean }) {
-  const c = pinColor(pin);
-  const exec = pin.type === 'exec';
+  const c = getPinColor('blueprint', pin);
+  const isConnected = pin.isConnected as any as boolean;
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '24px', paddingLeft: '18px' }}>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', height: '26px', paddingLeft: '16px' }}>
       <Handle type="target" position={Position.Left} id={pin.id} style={{
-        width: exec ? '14px' : '10px', height: exec ? '11px' : '10px',
-        left: exec ? '-7px' : '-5px', top: '50%', transform: 'translateY(-50%)',
-        borderRadius: exec ? '0' : '50%', background: c,
-        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.55)`,
-        clipPath: exec ? ARROW : undefined, boxShadow: exec ? 'none' : `0 0 4px ${c}88`,
-      }} />
-      {pin.label && !hideLabel && <span style={LABEL}>{pin.label}</span>}
+        width: '12px', height: '12px', left: '-6px', top: '50%', transform: 'translateY(-50%)',
+        background: 'transparent', border: 'none', zIndex: 10
+      }}>
+        <div style={{ pointerEvents: 'none' }}><PinIcon color={c} type={pin.type} isConnected={isConnected} /></div>
+      </Handle>
+      <div style={{ display: 'flex', alignItems: 'center', opacity: 0.9 }}>
+        {pin.label && !hideLabel && <span style={LABEL_STYLE}>{pin.label}</span>}
+        {!hideLabel && pin.defaultValue && <div style={VALUE_STYLE}>{pin.defaultValue}</div>}
+      </div>
     </div>
   );
 }
 
 function OutputPin({ pin, hideLabel }: { pin: PinData; hideLabel?: boolean }) {
-  const c = pinColor(pin);
-  const exec = pin.type === 'exec';
+  const c = getPinColor('blueprint', pin);
+  const isConnected = pin.isConnected as any as boolean;
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '24px', paddingRight: '18px' }}>
-      {pin.label && !hideLabel && <span style={LABEL}>{pin.label}</span>}
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '26px', paddingRight: '16px' }}>
+      {pin.label && !hideLabel && <span style={LABEL_STYLE}>{pin.label}</span>}
       <Handle type="source" position={Position.Right} id={pin.id} style={{
-        width: exec ? '14px' : '10px', height: exec ? '11px' : '10px',
-        right: exec ? '-7px' : '-5px', top: '50%', transform: 'translateY(-50%)',
-        borderRadius: exec ? '0' : '50%', background: c,
-        border: exec ? 'none' : `1.5px solid rgba(0,0,0,0.55)`,
-        clipPath: exec ? ARROW : undefined, boxShadow: exec ? 'none' : `0 0 4px ${c}88`,
-      }} />
+        width: '12px', height: '12px', right: '-12px', top: '50%', transform: 'translateY(-50%)',
+        background: 'transparent', border: 'none', zIndex: 10
+      }}>
+        <div style={{ pointerEvents: 'none' }}><PinIcon color={c} type={pin.type} isConnected={isConnected} /></div>
+      </Handle>
     </div>
   );
 }
 
 export default function BlueprintNode({ data }: { data: NodeData }) {
   const theme = useMemo(() => NODE_THEME[data.nodeType] ?? NODE_THEME.function, [data.nodeType]);
-  const inputs  = [...data.inputs.filter(p => p.type === 'exec'),  ...data.inputs.filter(p => p.type !== 'exec')];
-  const outputs = [...data.outputs.filter(p => p.type === 'exec'), ...data.outputs.filter(p => p.type !== 'exec')];
-  const rows = Math.max(inputs.length, outputs.length, 1);
+  
+  const sortedInputs = useMemo(() => 
+    [...data.inputs.filter(p => p.type === 'exec'), ...data.inputs.filter(p => p.type !== 'exec')],
+    [data.inputs]
+  );
+  const sortedOutputs = useMemo(() => 
+    [...data.outputs.filter(p => p.type === 'exec'), ...data.outputs.filter(p => p.type !== 'exec')],
+    [data.outputs]
+  );
 
-  if (data.nodeType === 'get') {
-    const outDataPin = outputs.find(p => p.type !== 'exec');
-    const color = outDataPin ? pinColor(outDataPin) : '#123d12';
-    
-    return (
-      <div style={{
-        minWidth: '50px', padding: '4px 14px', borderRadius: '20px',
-        background: `linear-gradient(180deg, ${color}44 0%, ${color}11 100%)`, 
-        border: `1px solid ${color}88`,
-        boxShadow: `0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
-        backdropFilter: 'blur(4px)'
-      }}>
-        <div style={{ position: 'absolute', left: 0 }}>
-           {inputs.map(p => <InputPin key={p.id} pin={p} hideLabel={true} />)}
-        </div>
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0', userSelect: 'none', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-          {data.label}
-        </span>
-        <div style={{ position: 'absolute', right: 0 }}>
-          {outputs.map(p => <OutputPin key={p.id} pin={p} hideLabel={true} />)}
-        </div>
-      </div>
-    );
-  }
+  const rows = Math.max(sortedInputs.length, sortedOutputs.length, 1);
+  const isMath = data.nodeType === 'math';
 
   return (
     <div style={{
-      minWidth: '200px', borderRadius: '8px', overflow: 'visible',
-      border: `1px solid ${theme.border}55`,
-      boxShadow: `0 0 0 1px rgba(0,0,0,0.95), 0 8px 28px rgba(0,0,0,0.85), 0 2px 6px rgba(0,0,0,0.6)`,
-      background: '#222', position: 'relative',
+      minWidth: '180px', borderRadius: '8px', overflow: 'hidden',
+      border: `1.5px solid rgba(0,0,0,0.85)`,
+      boxShadow: `0 8px 24px rgba(0,0,0,0.6)`,
+      background: '#222224', position: 'relative',
     }}>
+      {/* Accent strip */}
+      <div style={{ height: '2px', background: theme.border }} />
+      {/* Header - Solid Color */}
       <div style={{
-        background: `linear-gradient(180deg, ${theme.h1} 0%, ${theme.h2} 100%)`,
-        borderRadius: '7px 7px 0 0', padding: '5px 10px',
-        display: 'flex', alignItems: 'center', gap: '7px',
-        borderBottom: '1px solid rgba(0,0,0,0.6)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)', minHeight: '28px',
+        background: theme.bg,
+        padding: '6px 14px', borderBottom: '1.5px solid rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'center', gap: '8px'
       }}>
-        <span style={{ fontSize: '12px', opacity: 0.7, lineHeight: 1, flexShrink: 0 }}>{theme.icon}</span>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', letterSpacing: '0.03em', lineHeight: 1, textShadow: '0 1px 3px rgba(0,0,0,0.8)', fontFamily: '"Segoe UI", system-ui, sans-serif', whiteSpace: 'nowrap' }}>{data.label}</span>
+        <span style={{ fontSize: '12px', opacity: 0.8, color: isMath ? '#000' : '#fff' }}>{theme.icon}</span>
+        <span style={{ fontSize: '12px', fontWeight: 800, color: isMath ? '#333' : '#fff', textShadow: isMath ? 'none' : '0 1px 3px #000' }}>{data.label}</span>
       </div>
+      {/* Body */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
-        paddingTop: '4px', paddingBottom: '5px',
-        minHeight: `${rows * 24 + 9}px`,
-        background: 'linear-gradient(180deg, #252525 0%, #202020 100%)',
-        borderRadius: '0 0 7px 7px',
+        display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '8px 0',
+        minHeight: `${rows * 26 + 12}px`,
+        background: '#1a1a1c',
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>{inputs.map(p => <InputPin key={p.id} pin={p} />)}</div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>{outputs.map(p => <OutputPin key={p.id} pin={p} />)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>{sortedInputs.map(p => <InputPin key={p.id} pin={p} />)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>{sortedOutputs.map(p => <OutputPin key={p.id} pin={p} />)}</div>
       </div>
     </div>
   );
